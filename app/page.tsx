@@ -93,6 +93,9 @@ function readAsDataUrl(file: File): Promise<string> {
 }
 
 export default function Home() {
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authNotice, setAuthNotice] = useState("");
   const [active, setActive] = useState<ToolId>("merge");
   const [files, setFiles] = useState<File[]>([]);
   const [pageNumbers, setPageNumbers] = useState("");
@@ -111,6 +114,7 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const actionPanelRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerViewRef = useRef<HTMLDivElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [scannedPages, setScannedPages] = useState<string[]>([]);
   const [cameraError, setCameraError] = useState("");
@@ -188,6 +192,21 @@ export default function Home() {
       const text = error instanceof Error ? error.message : "Camera permission denied or camera unavailable.";
       setCameraError(text);
       setMessage(text);
+    }
+  }
+
+  async function openScannerFullscreen() {
+    const scannerView = scannerViewRef.current;
+    if (!scannerView) return;
+
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else if (scannerView.requestFullscreen) {
+        await scannerView.requestFullscreen();
+      }
+    } catch {
+      setCameraError("Full screen is not available in this browser. You can still use the large camera preview.");
     }
   }
 
@@ -705,6 +724,31 @@ export default function Home() {
 
   return (
     <div className="app-shell">
+      {showAuth && (
+        <div className="auth-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAuth(false); }}>
+          <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <button className="auth-close" type="button" aria-label="Close login" onClick={() => setShowAuth(false)}>×</button>
+            <div className="auth-brand-mark">S</div>
+            <p className="auth-eyebrow">WELCOME TO SNAPCONVERT</p>
+            <h2 id="auth-title">{authMode === "login" ? "Welcome back" : "Create your account"}</h2>
+            <p className="auth-subtitle">{authMode === "login" ? "Sign in to your SnapConvert account." : "Create an account to get started."}</p>
+            <div className="auth-tabs">
+              <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => { setAuthMode("login"); setAuthNotice(""); }}>Login</button>
+              <button type="button" className={authMode === "signup" ? "active" : ""} onClick={() => { setAuthMode("signup"); setAuthNotice(""); }}>Sign up</button>
+            </div>
+            <form className="auth-form" onSubmit={(event) => { event.preventDefault(); setAuthNotice("Account authentication will be activated when the secure backend is connected. You can use SnapConvert as a guest right now."); }}>
+              {authMode === "signup" && <label>Full name<input type="text" name="name" placeholder="Your name" autoComplete="name" required /></label>}
+              <label>Email address<input type="email" name="email" placeholder="you@example.com" autoComplete="email" required /></label>
+              <label>Password<input type="password" name="password" placeholder="At least 8 characters" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={8} required /></label>
+              <button className="auth-submit" type="submit">{authMode === "login" ? "Login" : "Create account"} <span>→</span></button>
+            </form>
+            {authNotice && <p className="auth-notice" role="status">{authNotice}</p>}
+            <div className="auth-divider"><span>OR</span></div>
+            <button className="auth-guest" type="button" onClick={() => setShowAuth(false)}>Continue as Guest <span>→</span></button>
+            <p className="auth-privacy">Guest access is free. All existing tools remain available without an account.</p>
+          </section>
+        </div>
+      )}
       <header className="app-header">
         <a className="nav-brand" href="#" onClick={(e) => { e.preventDefault(); selectTool("merge"); }}>
           <span className="nav-logo">S</span>
@@ -723,7 +767,7 @@ export default function Home() {
           <a href="#student-hub">♧ <span>Student Hub</span></a>
           <a href="#ai-assistant">✣ <span>AI Assistant</span></a>
         </nav>
-        <div className="header-actions"><button className="theme-button" aria-label="Theme">☾</button><span className="no-login">✓ No Login Required</span></div>
+        <div className="header-actions"><button className="theme-button" aria-label="Theme">☾</button><button className="auth-open-button" type="button" onClick={() => { setAuthMode("login"); setAuthNotice(""); setShowAuth(true); }}>Login / Sign up</button><span className="no-login">✓ Guest access</span></div>
       </header>
 
       {allToolsOpen && (
@@ -1028,36 +1072,75 @@ export default function Home() {
             </div>
             <div className="file-area">
               {active === "scanner" && (
-                <div className="scanner-box">
-                  {!cameraStream ? (
-                    <div className="camera-start">
-                      <div className="camera-symbol">▣</div>
-                      <b>Scan documents with your camera</b>
-                      <p>Place your page in good light, keep the camera steady and capture each page. Camera access requires localhost or HTTPS.</p>
-                      <button className="primary" onClick={startCamera}>Start Camera</button>
+                <section className="scanner-workspace">
+                  <div className="scanner-intro">
+                    <div className="scanner-intro-icon">▤</div>
+                    <div>
+                      <span className="scanner-kicker">PAPER TO PDF</span>
+                      <h4>Turn paper documents into clean PDFs</h4>
+                      <p>Capture one or more pages, review them, then save everything as a single PDF.</p>
                     </div>
-                  ) : (
-                    <div className="camera-live">
-                      <video ref={(node) => { videoRef.current = node; if (node && cameraStream && node.srcObject !== cameraStream) node.srcObject = cameraStream; }} autoPlay playsInline muted />
-                      <div className="button-row">
-                        <button className="primary" onClick={capturePage}>Capture Page</button>
-                        <button className="secondary" onClick={stopCamera}>Stop Camera</button>
+                  </div>
+
+                  <div className="scanner-steps">
+                    <div className={!cameraStream && scannedPages.length === 0 ? "scanner-step active" : "scanner-step done"}><i>1</i><span>Capture pages</span></div>
+                    <div className={scannedPages.length ? "scanner-step active" : "scanner-step"}><i>2</i><span>Review scans</span></div>
+                    <div className={scannedPages.length ? "scanner-step" : "scanner-step"}><i>3</i><span>Create PDF</span></div>
+                  </div>
+
+                  <div className="scanner-work-grid">
+                    <div className="scanner-preview-card">
+                      <div className="scanner-card-heading">
+                        <div><b>Camera preview</b><small>{cameraStream ? "Camera is ready — position your document" : "Your camera preview will appear here"}</small></div>
+                        <span className={cameraStream ? "camera-status live" : "camera-status"}><i/> {cameraStream ? "LIVE" : "NOT CONNECTED"}</span>
                       </div>
+                      {cameraStream ? (
+                        <div ref={scannerViewRef} className="camera-live scanner-live-view">
+                          <div className="scanner-live-topbar">
+                            <span><i /> Camera is live</span>
+                            <button type="button" className="scanner-fullscreen-button" onClick={openScannerFullscreen}>
+                              ⛶ Full screen
+                            </button>
+                          </div>
+                          <video ref={(node) => { videoRef.current = node; if (node && cameraStream && node.srcObject !== cameraStream) node.srcObject = cameraStream; }} autoPlay playsInline muted />
+                          <div className="scanner-live-controls">
+                            <button className="scanner-capture-button" onClick={capturePage}><span>＋</span> Capture page</button>
+                            <button className="scanner-stop-button" onClick={stopCamera}>Stop camera</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="scanner-empty-preview">
+                          <div className="scanner-document-art"><span/><span/><span/><b>PDF</b></div>
+                          <b>Ready when you are</b>
+                          <p>Place your document in the frame and use your camera to capture each page.</p>
+                          <button className="scanner-start-button" onClick={startCamera}><span>▣</span> Start camera</button>
+                          <small>Camera permission is requested by your browser. HTTPS or localhost is required.</small>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {cameraError && <div className="error">{cameraError}</div>}
-                  {scannedPages.length > 0 && <div className="capture-list">
-                    <div className="list-title">Captured pages ({scannedPages.length})</div>
-                    <div className="scan-thumbs">{scannedPages.map((page, index) => (
-                      <div className="scan-thumb" key={`${index}-${page.length}`}>
-                        <img src={page} alt={`Captured page ${index + 1}`} />
-                        <small>Page {index + 1}</small>
-                        <button className="remove" onClick={() => setScannedPages(current => current.filter((_, i) => i !== index))}>Remove</button>
+
+                    <aside className="scanner-side-card">
+                      <div className="scanner-card-heading"><div><b>Scan summary</b><small>Your document progress</small></div><span className="scanner-count">{scannedPages.length}</span></div>
+                      <div className="scanner-summary-row"><span>Pages captured</span><b>{scannedPages.length}</b></div>
+                      <div className="scanner-summary-row"><span>Output format</span><b>PDF document</b></div>
+                      <div className="scanner-summary-row"><span>Processing</span><b className="scanner-local-label">In your browser</b></div>
+                      <div className="scanner-tip"><b>For a clearer scan</b><p>Use bright, even lighting. Keep the page flat and fit all four corners inside the camera view.</p></div>
+                      {cameraError && <div className="scanner-error" role="alert">{cameraError}</div>}
+                      <button className="scanner-create-button" disabled={busy || scannedPages.length === 0} onClick={processFiles}>{busy ? "Creating your PDF…" : "Create PDF"}<span>→</span></button>
+                      <small className="scanner-secure-note">🔒 Your captured pages stay in this browser.</small>
+                    </aside>
+                  </div>
+
+                  {scannedPages.length > 0 && <div className="scanner-pages-card">
+                    <div className="scanner-pages-heading"><div><b>Captured pages</b><small>Review your scans before creating the PDF.</small></div><span>{scannedPages.length} {scannedPages.length === 1 ? "page" : "pages"}</span></div>
+                    <div className="scanner-page-grid">{scannedPages.map((page, index) => (
+                      <div className="scanner-page-item" key={`${index}-${page.length}`}>
+                        <div className="scanner-page-image"><img src={page} alt={`Captured page ${index + 1}`} /></div>
+                        <div className="scanner-page-meta"><b>Page {index + 1}</b><button className="scanner-remove-page" aria-label={`Remove page ${index + 1}`} onClick={() => setScannedPages(current => current.filter((_, i) => i !== index))}>Remove</button></div>
                       </div>
                     ))}</div>
                   </div>}
-                  <button className="primary process" disabled={busy || scannedPages.length === 0} onClick={processFiles}>{busy ? "Creating PDF..." : "Create PDF from Scans →"}</button>
-                </div>
+                </section>
               )}
               {active !== "scanner" && <>
               <label className="dropzone">
@@ -1126,7 +1209,7 @@ export default function Home() {
               </>
             )}
           </section>
-          <footer className="dashboard-footer"><b>SnapConvert</b><small>© {new Date().getFullYear()} SnapConvert · Built for students · No login required</small></footer>
+          <footer className="dashboard-footer"><b>SnapConvert</b><small>© {new Date().getFullYear()} SnapConvert · Built for students · Free guest access · Developed by <strong>Manbir Singh</strong></small></footer>
         </main>
       </div>
     </div>
