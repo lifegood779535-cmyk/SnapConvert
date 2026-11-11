@@ -763,8 +763,8 @@ export default function Home() {
             }
             setAllToolsOpen((open) => !open);
           }}>▦ <span>All Tools</span><span className="all-tools-chevron">{allToolsOpen ? "⌃" : "⌄"}</span></button>
-          <a href="#ppt-studio">▣ <span>PPT Studio</span></a>
-          <a href="#student-hub">♧ <span>Student Hub</span></a>
+          <a href="/ppt-studio">▣ <span>PPT Studio</span></a>
+          <a href="/student-hub">♧ <span>Student Hub</span></a>
           <a href="#ai-assistant">✣ <span>AI Assistant</span></a>
         </nav>
         <div className="header-actions"><button className="theme-button" aria-label="Theme">☾</button><button className="auth-open-button" type="button" onClick={() => { setAuthMode("login"); setAuthNotice(""); setShowAuth(true); }}>Login / Sign up</button><span className="no-login">✓ Guest access</span></div>
@@ -858,7 +858,7 @@ export default function Home() {
               ["▤","Summarize Notes","AI Study Assistant","notes"],
               ["▤","Make Assignment","College & School","assignment"]
             ].map(([icon,title,desc,id]) => (
-              <button className="quick-card" key={id} onClick={() => id === "scan" ? selectTool("scanner") : setMessage(`${title} is part of the SnapConvert workspace. Its dedicated module is not enabled in this build yet.`)}>
+              <button className="quick-card" key={id} onClick={() => id === "scan" ? selectTool("scanner") : id === "ppt" ? (window.location.href = "/ppt-studio") : id === "notes" || id === "assignment" ? (window.location.href = "/student-hub") : setMessage(`${title} is part of the SnapConvert workspace. Its dedicated module is not enabled in this build yet.`)}>
                 <span className="quick-icon">{icon}</span><span><b>{title}</b><small>{desc}</small></span>
               </button>
             ))}
@@ -916,9 +916,9 @@ export default function Home() {
           <section className="tool-section extra-sections" id="ppt-studio">
             <div className="section-title-row"><div><span className="section-mark">▧</span><h2>PPT Studio</h2></div><span className="module-note">Workspace module</span></div>
             <div className="dashboard-tool-grid">
-              <button className="dashboard-tool-card" onClick={() => setMessage("PPT Studio module is not enabled in this build yet.")}><span className="dashboard-tool-icon orange">▣</span><span><b>Create PPT</b><small>Build a presentation</small></span></button>
-              <button className="dashboard-tool-card" onClick={() => setMessage("PPT templates module is not enabled in this build yet.")}><span className="dashboard-tool-icon purple">▤</span><span><b>PPT Templates</b><small>Start from a template</small></span></button>
-              <button className="dashboard-tool-card" onClick={() => setMessage("Student Hub module is not enabled in this build yet.")}><span className="dashboard-tool-icon blue">✧</span><span><b>Student Hub</b><small>Study and revision tools</small></span></button>
+              <button className="dashboard-tool-card" onClick={() => { window.location.href = "/ppt-studio"; }}><span className="dashboard-tool-icon orange">▣</span><span><b>Create PPT</b><small>Build a presentation</small></span></button>
+              <button className="dashboard-tool-card" onClick={() => { window.location.href = "/ppt-studio"; }}><span className="dashboard-tool-icon purple">▤</span><span><b>PPT Templates</b><small>Start from a template</small></span></button>
+              <button className="dashboard-tool-card" onClick={() => { window.location.href = "/student-hub"; }}><span className="dashboard-tool-icon blue">✧</span><span><b>Student Hub</b><small>Study and revision tools</small></span></button>
             </div>
           </section>
 
